@@ -34,7 +34,7 @@ function renderModelPicker() {
     row.className = "model-row" + (name === selectedModel ? " selected" : "");
     row.innerHTML = "<button class='model-row-main' type='button'><span class='model-row-icon'>◈</span><span class='model-row-name'></span><span class='model-row-check'>✓</span></button><button class='model-favorite' type='button' aria-label='Toggle favorite'>★</button>";
     row.querySelector(".model-row-name").textContent = name;
-    row.querySelector(".model-row-main").addEventListener("click", () => { selectedModel = name; $("#modelSelect").value = name; $("#selectedModelLabel").textContent = name; $("#modelPickerSelected").textContent = "Selected: " + name; renderModelPicker(); });
+    row.querySelector(".model-row-main").addEventListener("click", () => { selectedModel = name; $("#selectedModelLabel").textContent = name; $("#modelPickerSelected").textContent = "Selected: " + name; renderModelPicker(); });
     const star = row.querySelector(".model-favorite");
     star.classList.toggle("active", favoriteModels.includes(name));
     star.addEventListener("click", () => { favoriteModels = favoriteModels.includes(name) ? favoriteModels.filter(item => item !== name) : [...favoriteModels, name]; localStorage.setItem("ollama-chat.favorites", JSON.stringify(favoriteModels)); renderModelPicker(); });
@@ -55,13 +55,13 @@ function createChat() { if (controller) controller.abort(); const chat = makeCha
 function titleFromPrompt(text) { const clean = text.replace(/\s+/g, " ").trim(); return clean.length > 34 ? clean.slice(0, 34).trimEnd() + "…" : clean || "New conversation"; }
 async function refreshModels() {
   $("#connectionLabel").textContent = "Connecting…"; $("#connectionDetail").textContent = client.baseUrl;
-  try { availableModels = await client.listModels(); updateConnection(true); hideConnectionModal(); const select = $("#modelSelect"); const previous = selectedModel || select.value; select.innerHTML = ""; availableModels.sort((x,y) => x.localeCompare(y, undefined, {numeric:true,sensitivity:"base"})); if (!availableModels.length) { select.add(new Option("No models found", "")); $("#selectedModelLabel").textContent = "No models found"; renderModelPicker(); toast("Ollama is running, but no models are installed."); return; } for (const model of availableModels) select.add(new Option(model, model)); selectedModel = availableModels.includes(previous) ? previous : availableModels[0]; select.value = selectedModel; $("#selectedModelLabel").textContent = selectedModel; renderModelPicker(); }
+  try { availableModels = await client.listModels(); updateConnection(true); hideConnectionModal(); const previous = selectedModel; availableModels.sort((x,y) => x.localeCompare(y, undefined, {numeric:true,sensitivity:"base"})); if (!availableModels.length) { selectedModel = ""; $("#selectedModelLabel").textContent = "No models found"; renderModelPicker(); toast("Ollama is running, but no models are installed."); return; } selectedModel = availableModels.includes(previous) ? previous : availableModels[0]; $("#selectedModelLabel").textContent = selectedModel; renderModelPicker(); }
   catch (error) { availableModels = []; updateConnection(false, error.message.includes("Failed to fetch") ? "Check URL and CORS settings" : error.message); $("#modelSelect").innerHTML = '<option value="">Ollama unavailable</option>'; showConnectionModal("Ollama isn't connected", error.message.includes("Failed to fetch") ? "Can't reach your Ollama server. It may be stopped, or this GitHub Pages origin may not be allowed by Ollama CORS." : error.message); }
 }
 function setGenerating(value) { generating = value; $("#sendButton").classList.toggle("hidden", value); $("#stopGeneration").classList.toggle("hidden", !value); $("#messageInput").disabled = value; }
 async function sendPrompt(text, addUser = true) {
   const chat = currentChat(); if (!chat) { createChat(); return sendPrompt(text, addUser); }
-  const model = $("#modelSelect").value;
+  const model = selectedModel;
   if (!model) { toast("Connect to Ollama and choose a model first."); return; }
   if (addUser) { chat.messages.push(makeMessage("user", text)); if (chat.messages.filter(message => message.role === "user").length === 1) chat.title = titleFromPrompt(text); }
   chat.updatedAt = Date.now(); persist(); render();
