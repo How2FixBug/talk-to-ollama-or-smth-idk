@@ -23,7 +23,7 @@ function render() {
   renderMessages(chat?.messages || [], settings.showTimestamps);
   $("#exportChat").disabled = !chat?.messages.length;
 }
-function createChat() { const chat = makeChat(); chats.unshift(chat); activeId = chat.id; persist(); render(); $("#messageInput").focus(); $("#sidebar").classList.remove("open"); }
+function createChat() { if (controller) controller.abort(); const chat = makeChat(); chats.unshift(chat); activeId = chat.id; persist(); render(); $("#messageInput").focus(); $("#sidebar").classList.remove("open"); }
 function titleFromPrompt(text) { const clean = text.replace(/\s+/g, " ").trim(); return clean.length > 34 ? clean.slice(0, 34).trimEnd() + "…" : clean || "New conversation"; }
 async function refreshModels() {
   $("#connectionLabel").textContent = "Connecting…"; $("#connectionDetail").textContent = client.baseUrl;
@@ -59,7 +59,7 @@ function deleteChat(id) { const index = chats.findIndex(chat => chat.id === id);
 $("#newChat").addEventListener("click", createChat);
 $("#chatList").addEventListener("click", event => {
   const item = event.target.closest("[data-chat-id]"); if (!item) return; const id = item.dataset.chatId; const action = event.target.closest("[data-action]")?.dataset.action;
-  if (!action) { activeId = id; render(); $("#sidebar").classList.remove("open"); return; }
+  if (!action) { if (controller) controller.abort(); activeId = id; render(); $("#sidebar").classList.remove("open"); return; }
   const chat = chats.find(entry => entry.id === id); if (!chat) return;
   if (action === "delete") { if (confirm("Delete this conversation?")) deleteChat(id); }
   if (action === "rename") { const title = prompt("Rename conversation:", chat.title); if (title?.trim()) { chat.title = title.trim(); persist(); render(); } }
