@@ -1,19 +1,32 @@
 # Ollama Chat
 
-A modular, local-first chat interface for Ollama. Built with plain HTML, CSS, and JavaScript modules — no framework, build step, account, or hosted chat backend.
+A modular, local-first chat interface for Ollama. Built with plain HTML, CSS, and vanilla JavaScript modules. No framework, build step, account, or hosted chat backend.
 
-## Run it
+## Open it on GitHub Pages
 
-1. Make sure [Ollama](https://ollama.com) is installed and running.
-2. Serve this folder from a local web server (ES modules do not run reliably from a `file://` URL). For example, from this folder run `python3 -m http.server 8000`.
-3. Open `http://localhost:8000`.
-4. Choose an installed model and start chatting.
+Once GitHub Pages is enabled for this repository, open:
 
-The default Ollama address is `http://localhost:11434`. Change it in **Settings → General** if your server uses another address.
+https://how2fixbug.github.io/talk-to-ollama-or-smth-idk/
 
-### CORS note
+No Python server, Node server, or local build is needed. The site is static; your browser connects directly to Ollama running on your own computer.
 
-If the interface is hosted on another origin (for example, GitHub Pages), Ollama must allow that exact origin. Set the `OLLAMA_ORIGINS` environment variable to include the page's origin, then restart Ollama. For local development, allow the local origin you use (such as `http://localhost:8000`). Do not expose an Ollama server to the public internet without appropriate network protections.
+## One-time Ollama CORS setup (macOS)
+
+GitHub Pages and Ollama run on different origins, so Ollama must allow the GitHub Pages origin.
+
+1. Quit Ollama completely.
+2. In Terminal, run:
+
+   ```sh
+   launchctl setenv OLLAMA_ORIGINS "https://how2fixbug.github.io"
+   ```
+
+3. Open Ollama again.
+4. Reload the GitHub Pages site and press **Try again** in the connection popup.
+
+If Ollama was already launched from a Terminal session with a custom environment, set `OLLAMA_ORIGINS` there instead. Keep the origin exactly as shown above (no repository path and no trailing slash). Do not expose your Ollama API to the public internet.
+
+The app's connection popup appears automatically if Ollama cannot be reached. It shows the current site origin and offers a retry button and a shortcut to connection settings.
 
 ## Features
 
@@ -44,4 +57,4 @@ js/
 
 ## Privacy
 
-Messages are sent to the Ollama server URL configured in Settings. Conversations and preferences are stored in this browser's local storage when chat-history saving is enabled. This app does not include analytics or a third-party chat API.
+Messages are sent directly from your browser to the Ollama server URL configured in Settings. Conversations and preferences are stored in this browser's local storage when chat-history saving is enabled. This app does not include analytics or a third-party chat API.
