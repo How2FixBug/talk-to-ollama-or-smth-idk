@@ -14,7 +14,7 @@ let availableModels = [];
 const currentChat = () => chats.find(chat => chat.id === activeId) || null;
 function persist() { saveChats(chats, settings.saveHistory); }
 function setSettings(next) { settings = next; }
-function showConnectionModal(title, message) { $("#connectionTitle").textContent = title; $("#connectionMessage").textContent = message; $("#connectionOrigin").textContent = location.origin; $("#connectionOverlay").classList.remove("hidden"); }
+function showConnectionModal(title, message) { $("#connectionTitle").textContent = title; $("#connectionMessage").textContent = message; $("#connectionOrigin").textContent = location.origin; $("#corsCommand").textContent = "launchctl setenv OLLAMA_ORIGINS \"" + location.origin + "\""; $("#connectionOverlay").classList.remove("hidden"); }
 function hideConnectionModal() { $("#connectionOverlay").classList.add("hidden"); }
 function updateConnection(online, detail = "") { $("#connectionDot").className = "status-dot " + (online ? "online" : "offline"); $("#connectionLabel").textContent = online ? "Ollama connected" : "Ollama offline"; $("#connectionDetail").textContent = detail || (online ? availableModels.length + " model" + (availableModels.length === 1 ? "" : "s") + " available" : "Check your server URL"); $("#modelStatus").innerHTML = online ? '<i class="online"></i> Connected locally' : '<i></i> Not connected'; }
 function render() {
@@ -75,6 +75,7 @@ $("#messageInput").addEventListener("keydown", event => { if (event.key === "Ent
 $("#stopGeneration").addEventListener("click", stopGeneration);
 $("#refreshModels").addEventListener("click", refreshModels);
 $("#retryConnection").addEventListener("click", refreshModels);
+$("#copyCorsCommand").addEventListener("click", async () => { await navigator.clipboard.writeText("launchctl setenv OLLAMA_ORIGINS \"" + location.origin + "\""); $("#copyCorsCommand").textContent = "Copied"; });
 $("#dismissConnection").addEventListener("click", hideConnectionModal);
 $("#connectionSettings").addEventListener("click", () => { hideConnectionModal(); $("#openSettings").click(); });
 $("#exportChat").addEventListener("click", exportChat);
