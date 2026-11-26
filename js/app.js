@@ -11,12 +11,38 @@ let client = new OllamaClient(settings.serverUrl);
 let controller = null;
 let generating = false;
 let availableModels = [];
+let selectedModel = "";
+let modelFilter = "all";
+let modelSort = "az";
+let favoriteModels = JSON.parse(localStorage.getItem("ollama-chat.favorites") || "[]");
 const currentChat = () => chats.find(chat => chat.id === activeId) || null;
 function persist() { saveChats(chats, settings.saveHistory); }
 function setSettings(next) { settings = next; }
 function showConnectionModal(title, message) { $("#connectionTitle").textContent = title; $("#connectionMessage").textContent = message; $("#connectionOrigin").textContent = location.origin; $("#corsCommand").textContent = "launchctl setenv OLLAMA_ORIGINS \"" + location.origin + "\""; $("#connectionOverlay").classList.remove("hidden"); }
 function hideConnectionModal() { $("#connectionOverlay").classList.add("hidden"); }
 function updateConnection(online, detail = "") { $("#connectionDot").className = "status-dot " + (online ? "online" : "offline"); $("#connectionLabel").textContent = online ? "Ollama connected" : "Ollama offline"; $("#connectionDetail").textContent = detail || (online ? availableModels.length + " model" + (availableModels.length === 1 ? "" : "s") + " available" : "Check your server URL"); $("#modelStatus").innerHTML = online ? '<i class="online"></i> Connected locally' : '<i></i> Not connected'; }
+function renderModelPicker() {
+  const query = $("#modelSearch").value.trim().toLowerCase();
+  let models = [...availableModels].filter(name => name.toLowerCase().includes(query));
+  if (modelFilter === "favorites") models = models.filter(name => favoriteModels.includes(name));
+  models.sort((x,y) => modelSort === "az" ? x.localeCompare(y, undefined, {numeric:true,sensitivity:"base"}) : y.localeCompare(x, undefined, {numeric:true,sensitivity:"base"}));
+  $("#modelPickerCount").textContent = models.length + " of " + availableModels.length + " installed models";
+  $("#modelPickerList").innerHTML = "";
+  if (!models.length) { $("#modelPickerList").innerHTML = "<div class='model-empty'>No models match these filters.</div>"; return; }
+  for (const name of models) {
+    const row = document.createElement("div");
+    row.className = "model-row" + (name === selectedModel ? " selected" : "");
+    row.innerHTML = "<button class='model-row-main' type='button'><span class='model-row-icon'>◈</span><span class='model-row-name'></span><span class='model-row-check'>✓</span></button><button class='model-favorite' type='button' aria-label='Toggle favorite'>★</button>";
+    row.querySelector(".model-row-name").textContent = name;
+    row.querySelector(".model-row-main").addEventListener("click", () => { selectedModel = name; $("#modelSelect").value = name; $("#selectedModelLabel").textContent = name; $("#modelPickerSelected").textContent = "Selected: " + name; renderModelPicker(); });
+    const star = row.querySelector(".model-favorite");
+    star.classList.toggle("active", favoriteModels.includes(name));
+    star.addEventListener("click", () => { favoriteModels = favoriteModels.includes(name) ? favoriteModels.filter(item => item !== name) : [...favoriteModels, name]; localStorage.setItem("ollama-chat.favorites", JSON.stringify(favoriteModels)); renderModelPicker(); });
+    $("#modelPickerList").append(row);
+  }
+}
+function openModelPicker() { $("#modelPickerOverlay").classList.remove("hidden"); $("#modelSearch").value = ""; $("#modelPickerSelected").textContent = selectedModel ? "Selected: " + selectedModel : "No model selected"; renderModelPicker(); $("#modelSearch").focus(); }
+function closeModelPicker() { $("#modelPickerOverlay").classList.add("hidden"); }
 function render() {
   renderChatList(chats, activeId, $("#chatSearch").value);
   const chat = currentChat();
@@ -29,7 +55,7 @@ function createChat() { if (controller) controller.abort(); const chat = makeCha
 function titleFromPrompt(text) { const clean = text.replace(/\s+/g, " ").trim(); return clean.length > 34 ? clean.slice(0, 34).trimEnd() + "…" : clean || "New conversation"; }
 async function refreshModels() {
   $("#connectionLabel").textContent = "Connecting…"; $("#connectionDetail").textContent = client.baseUrl;
-  try { availableModels = await client.listModels(); updateConnection(true); hideConnectionModal(); const select = $("#modelSelect"); const previous = select.value; select.innerHTML = ""; if (!availableModels.length) { select.add(new Option("No models found", "")); toast("Ollama is running, but no models are installed."); return; } for (const model of availableModels) select.add(new Option(model, model)); if (availableModels.includes(previous)) select.value = previous; }
+  try { availableModels = await client.listModels(); updateConnection(true); hideConnectionModal(); const select = $("#modelSelect"); const previous = selectedModel || select.value; select.innerHTML = ""; availableModels.sort((x,y) => x.localeCompare(y, undefined, {numeric:true,sensitivity:"base"})); if (!availableModels.length) { select.add(new Option("No models found", "")); $("#selectedModelLabel").textContent = "No models found"; renderModelPicker(); toast("Ollama is running, but no models are installed."); return; } for (const model of availableModels) select.add(new Option(model, model)); selectedModel = availableModels.includes(previous) ? previous : availableModels[0]; select.value = selectedModel; $("#selectedModelLabel").textContent = selectedModel; renderModelPicker(); }
   catch (error) { availableModels = []; updateConnection(false, error.message.includes("Failed to fetch") ? "Check URL and CORS settings" : error.message); $("#modelSelect").innerHTML = '<option value="">Ollama unavailable</option>'; showConnectionModal("Ollama isn't connected", error.message.includes("Failed to fetch") ? "Can't reach your Ollama server. It may be stopped, or this GitHub Pages origin may not be allowed by Ollama CORS." : error.message); }
 }
 function setGenerating(value) { generating = value; $("#sendButton").classList.toggle("hidden", value); $("#stopGeneration").classList.toggle("hidden", !value); $("#messageInput").disabled = value; }
@@ -59,6 +85,13 @@ function exportChat() {
 function deleteChat(id) { const index = chats.findIndex(chat => chat.id === id); if (index < 0) return; chats.splice(index, 1); if (activeId === id) activeId = chats[0]?.id || null; persist(); render(); }
 
 $("#newChat").addEventListener("click", createChat);
+$("#openModelPicker").addEventListener("click", openModelPicker);
+$("#closeModelPicker").addEventListener("click", closeModelPicker);
+$("#doneModelPicker").addEventListener("click", closeModelPicker);
+$("#modelPickerOverlay").addEventListener("click", event => { if (event.target === $("#modelPickerOverlay")) closeModelPicker(); });
+$("#modelSearch").addEventListener("input", renderModelPicker);
+document.querySelectorAll("[data-model-filter]").forEach(button => button.addEventListener("click", () => { modelFilter = button.dataset.modelFilter; document.querySelectorAll("[data-model-filter]").forEach(item => item.classList.toggle("active", item === button)); renderModelPicker(); }));
+document.querySelectorAll("[data-model-sort]").forEach(button => button.addEventListener("click", () => { modelSort = button.dataset.modelSort; document.querySelectorAll("[data-model-sort]").forEach(item => item.classList.toggle("active", item === button)); renderModelPicker(); }));
 $("#chatList").addEventListener("click", event => {
   const item = event.target.closest("[data-chat-id]"); if (!item) return; const id = item.dataset.chatId; const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) { if (controller) controller.abort(); activeId = id; render(); $("#sidebar").classList.remove("open"); return; }
@@ -89,7 +122,7 @@ $("#messages").addEventListener("click", async event => {
 document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => { $("#messageInput").value = button.dataset.prompt; $("#messageInput").focus(); $("#messageInput").dispatchEvent(new Event("input")); }));
 $("#openSidebar").addEventListener("click", () => $("#sidebar").classList.add("open"));
 $("#closeSidebar").addEventListener("click", () => $("#sidebar").classList.remove("open"));
-document.addEventListener("keydown", event => { const mod = event.metaKey || event.ctrlKey; if (mod && event.key.toLowerCase() === "k") { event.preventDefault(); createChat(); } if (mod && event.key === ",") { event.preventDefault(); $("#openSettings").click(); } if (event.key === "Escape") { $("#settingsOverlay").classList.add("hidden"); $("#sidebar").classList.remove("open"); } });
+document.addEventListener("keydown", event => { const mod = event.metaKey || event.ctrlKey; if (mod && event.key.toLowerCase() === "k") { event.preventDefault(); createChat(); } if (mod && event.key === ",") { event.preventDefault(); $("#openSettings").click(); } if (event.key === "Escape") { closeModelPicker(); $("#settingsOverlay").classList.add("hidden"); $("#sidebar").classList.remove("open"); } });
 
 initSettings(() => settings, setSettings, url => { client.setBaseUrl(url); refreshModels(); });
 applyTheme(settings.theme, settings);
