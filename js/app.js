@@ -1,7 +1,8 @@
-import { $, renderChatList, renderMessages, showTyping, toast, formatTime } from "./ui.js";
+import { $, renderChatList, renderMessages, showTyping, toast } from "./ui.js";
 import { OllamaClient } from "./ollama.js";
-import { loadChats, saveChats, loadSettings, saveSettings, makeChat, makeMessage } from "./storage.js";
+import { loadChats, saveChats, loadSettings, makeChat, makeMessage } from "./storage.js";
 import { initSettings, applyTheme } from "./settings.js";
+import { renderMarkdown } from "./markdown.js";
 
 let chats = loadChats();
 let settings = loadSettings();
@@ -40,8 +41,7 @@ async function sendPrompt(text, addUser = true) {
   const history = chat.messages.filter(message => message.content).filter(message => message.id !== assistant.id).map(message => ({ role: message.role, content: message.content }));
   const messages = [...(settings.systemPrompt.trim() ? [{ role: "system", content: settings.systemPrompt }] : []), ...history];
   try {
-    $("#typingIndicator")?.remove();
-    await client.chat({ model, messages, temperature: settings.temperature, contextLength: settings.contextLength, signal: controller.signal, onToken: (_token, fullText) => { assistant.content = fullText; const existing = document.querySelector(`[data-message-id="${assistant.id}"]`); if (!existing) { $("#typingIndicator")?.remove(); render(); } else { const content = existing.querySelector(".message-content"); if (content) { import("./markdown.js").then(module => { if (document.body.contains(content)) content.innerHTML = module.renderMarkdown(fullText); }); } } $("#messages").scrollTop = $("#messages").scrollHeight; } });
+    await client.chat({ model, messages, temperature: settings.temperature, contextLength: settings.contextLength, signal: controller.signal, onToken: (_token, fullText) => { assistant.content = fullText; const existing = document.querySelector(`[data-message-id="${assistant.id}"]`); if (!existing) { $("#typingIndicator")?.remove(); render(); } else { const content = existing.querySelector(".message-content"); if (content) { if (document.body.contains(content)) content.innerHTML = renderMarkdown(fullText); } } $("#messages").scrollTop = $("#messages").scrollHeight; } });
     if (!assistant.content) assistant.content = "*(No response received.)*";
   } catch (error) {
     if (error.name === "AbortError") { if (!assistant.content) chat.messages.pop(); }
