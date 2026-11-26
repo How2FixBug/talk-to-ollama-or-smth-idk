@@ -18,3 +18,5 @@ jobs:
             echo "Checking $file"
             node --check "$file"
           done
+      - name: Run core and smoke tests
+        run: npm test
