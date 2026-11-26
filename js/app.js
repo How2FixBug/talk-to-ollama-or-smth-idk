@@ -14,6 +14,8 @@ let availableModels = [];
 const currentChat = () => chats.find(chat => chat.id === activeId) || null;
 function persist() { saveChats(chats, settings.saveHistory); }
 function setSettings(next) { settings = next; }
+function showConnectionModal(title, message) { $("#connectionTitle").textContent = title; $("#connectionMessage").textContent = message; $("#connectionOrigin").textContent = location.origin; $("#connectionOverlay").classList.remove("hidden"); }
+function hideConnectionModal() { $("#connectionOverlay").classList.add("hidden"); }
 function updateConnection(online, detail = "") { $("#connectionDot").className = "status-dot " + (online ? "online" : "offline"); $("#connectionLabel").textContent = online ? "Ollama connected" : "Ollama offline"; $("#connectionDetail").textContent = detail || (online ? availableModels.length + " model" + (availableModels.length === 1 ? "" : "s") + " available" : "Check your server URL"); $("#modelStatus").innerHTML = online ? '<i class="online"></i> Connected locally' : '<i></i> Not connected'; }
 function render() {
   renderChatList(chats, activeId, $("#chatSearch").value);
@@ -27,8 +29,8 @@ function createChat() { if (controller) controller.abort(); const chat = makeCha
 function titleFromPrompt(text) { const clean = text.replace(/\s+/g, " ").trim(); return clean.length > 34 ? clean.slice(0, 34).trimEnd() + "…" : clean || "New conversation"; }
 async function refreshModels() {
   $("#connectionLabel").textContent = "Connecting…"; $("#connectionDetail").textContent = client.baseUrl;
-  try { availableModels = await client.listModels(); updateConnection(true); const select = $("#modelSelect"); const previous = select.value; select.innerHTML = ""; if (!availableModels.length) { select.add(new Option("No models found", "")); toast("Ollama is running, but no models are installed."); return; } for (const model of availableModels) select.add(new Option(model, model)); if (availableModels.includes(previous)) select.value = previous; }
-  catch (error) { availableModels = []; updateConnection(false, error.message.includes("Failed to fetch") ? "Check URL and CORS settings" : error.message); $("#modelSelect").innerHTML = '<option value="">Ollama unavailable</option>'; }
+  try { availableModels = await client.listModels(); updateConnection(true); hideConnectionModal(); const select = $("#modelSelect"); const previous = select.value; select.innerHTML = ""; if (!availableModels.length) { select.add(new Option("No models found", "")); toast("Ollama is running, but no models are installed."); return; } for (const model of availableModels) select.add(new Option(model, model)); if (availableModels.includes(previous)) select.value = previous; }
+  catch (error) { availableModels = []; updateConnection(false, error.message.includes("Failed to fetch") ? "Check URL and CORS settings" : error.message); $("#modelSelect").innerHTML = '<option value="">Ollama unavailable</option>'; showConnectionModal("Ollama isn't connected", error.message.includes("Failed to fetch") ? "Can't reach your Ollama server. It may be stopped, or this GitHub Pages origin may not be allowed by Ollama CORS." : error.message); }
 }
 function setGenerating(value) { generating = value; $("#sendButton").classList.toggle("hidden", value); $("#stopGeneration").classList.toggle("hidden", !value); $("#messageInput").disabled = value; }
 async function sendPrompt(text, addUser = true) {
@@ -72,6 +74,9 @@ $("#messageInput").addEventListener("input", event => { event.target.style.heigh
 $("#messageInput").addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && settings.enterToSend) { event.preventDefault(); $("#sendButton").click(); } });
 $("#stopGeneration").addEventListener("click", stopGeneration);
 $("#refreshModels").addEventListener("click", refreshModels);
+$("#retryConnection").addEventListener("click", refreshModels);
+$("#dismissConnection").addEventListener("click", hideConnectionModal);
+$("#connectionSettings").addEventListener("click", () => { hideConnectionModal(); $("#openSettings").click(); });
 $("#exportChat").addEventListener("click", exportChat);
 $("#moreChat").addEventListener("click", () => { const chat = currentChat(); if (!chat) { toast("Start a conversation first"); return; } const choice = prompt("Type: rename, pin, or delete", "rename"); if (choice === "delete" && confirm("Delete this conversation?")) deleteChat(chat.id); else if (choice === "pin") { chat.pinned = !chat.pinned; persist(); render(); } else if (choice === "rename") { const title = prompt("Conversation name:", chat.title); if (title?.trim()) { chat.title = title.trim(); persist(); render(); } } });
 $("#messages").addEventListener("click", async event => {
