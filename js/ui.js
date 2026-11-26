@@ -1,0 +1,15 @@
+import { renderMarkdown, escapeHTML } from "./markdown.js";
+export const $ = selector => document.querySelector(selector);
+export function formatTime(timestamp) { return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(timestamp)); }
+export function renderChatList(chats, activeId, query = "") {
+  const root = $("#chatList"); root.innerHTML = ""; const filtered = [...chats].sort((a,b) => Number(b.pinned)-Number(a.pinned) || b.updatedAt-a.updatedAt).filter(chat => chat.title.toLowerCase().includes(query.toLowerCase()));
+  if (!filtered.length) { root.innerHTML = '<div class="empty-history">No conversations yet</div>'; return; }
+  for (const chat of filtered) { const item = document.createElement("div"); item.className = "chat-item" + (chat.id === activeId ? " active" : ""); item.dataset.chatId = chat.id; item.innerHTML = `<span aria-hidden="true">${chat.pinned ? "◆" : "◦"}</span><span class="chat-item-main"><span class="chat-item-title">${escapeHTML(chat.title)}</span><span class="chat-item-time">${formatTime(chat.updatedAt)}</span></span><span class="chat-item-actions"><button data-action="rename" title="Rename" aria-label="Rename chat">✎</button><button data-action="pin" title="Pin" aria-label="Pin chat">⌑</button><button data-action="delete" title="Delete" aria-label="Delete chat">×</button></span>`; root.append(item); }
+}
+export function renderMessages(messages, showTimestamps) {
+  const root = $("#messages"); root.innerHTML = "";
+  for (const message of messages) { const item = document.createElement("article"); item.className = "message " + message.role; item.dataset.messageId = message.id; const label = message.role === "user" ? "You" : "Assistant"; item.innerHTML = `<div class="message-avatar">${message.role === "user" ? "R" : "✳"}</div><div class="message-body"><div class="message-meta"><strong>${label}</strong>${showTimestamps ? `<span>${formatTime(message.createdAt)}</span>` : ""}</div><div class="message-content">${message.role === "assistant" ? renderMarkdown(message.content) : escapeHTML(message.content).replace(/\n/g,"<br>")}</div><div class="message-actions"><button data-message-action="copy">Copy</button>${message.role === "assistant" ? '<button data-message-action="retry">Regenerate</button>' : ""}</div></div>`; root.append(item); }
+  root.scrollTop = root.scrollHeight;
+}
+export function showTyping() { const root = $("#messages"); const item = document.createElement("div"); item.className = "message"; item.id = "typingIndicator"; item.innerHTML = '<div class="message-avatar">✳</div><div class="message-body"><div class="message-meta"><strong>Assistant</strong></div><div class="typing-indicator"><span></span><span></span><span></span></div></div>'; root.append(item); root.scrollTop = root.scrollHeight; }
+export function toast(message) { const root = $("#toastRegion"); const item = document.createElement("div"); item.className = "toast"; item.textContent = message; root.append(item); setTimeout(() => item.remove(), 2800); }
